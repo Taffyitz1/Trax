@@ -30,8 +30,9 @@ console.log("✅ Webhook server starting...");
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
-console.log("📩 Webhook HIT from Helius!");
-console.log("📦 Raw Payload:", JSON.stringify(webhook, null, 2));
+  const webhook = req.body;
+  console.log("📩 Webhook HIT from Helius!");
+  console.log("📦 Raw Payload:", JSON.stringify(webhook, null, 2));
 
 // Send ALL transactions to Telegram
 const message = `🔔 New Transaction from Helius!\n\n` +
