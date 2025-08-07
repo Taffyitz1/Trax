@@ -11,11 +11,11 @@ app.use(express.json());
 
 // Load wallets with tag names
 const wallets = JSON.parse(fs.readFileSync('./wallets.json', 'utf8'));
+console.log("📂 Loaded wallets:", wallets);
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
 
 console.log("✅ Webhook server starting...");
-console.log("📂 Loaded wallets:", wallets);
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
   console.log('📩 Webhook HIT from Helius!');
