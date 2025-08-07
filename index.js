@@ -10,12 +10,24 @@ const app = express();
 app.use(express.json());
 
 // Load wallets with tag names
-const wallets = JSON.parse(fs.readFileSync('./wallets.json', 'utf8'));
-console.log("📂 Loaded wallets:", wallets);
+let wallets = {};
+try {
+  wallets = JSON.parse(fs.readFileSync('./wallets.json', 'utf8'));
+  console.log("📂 Loaded wallets:", wallets);
+} catch (err) {
+  console.error("❌ Failed to load wallets.json:", err);
+}
+
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
 
+// Optional: Notify Telegram when bot starts
+sendTelegram("✅ Webhook bot is live and tracking...").catch(err =>
+  console.error("❌ Failed to send startup message:", err)
+);
+
 console.log("✅ Webhook server starting...");
+
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
   console.log('📩 Webhook HIT from Helius!');
@@ -64,11 +76,18 @@ app.post('/webhook', async (req, res) => {
 async function sendTelegram(text) {
   const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
-  await fetch(url, {
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text })
   });
+
+  const data = await response.json();
+  console.log("📨 Telegram API response:", data);
+
+  if (!data.ok) {
+    throw new Error(data.description || 'Unknown Telegram error');
+  }
 }
 
 // Start server
