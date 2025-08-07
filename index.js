@@ -14,6 +14,8 @@ const wallets = JSON.parse(fs.readFileSync('./wallets.json', 'utf8'));
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
 
+console.log("Script started...");
+console.log("Polling wallet:", wallet);
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
   console.log('📩 Webhook HIT from Helius!');
