@@ -40,66 +40,38 @@ app.post('/webhook', async (req, res) => {
   for (const event of events) {
     console.log("📩 New Event:", JSON.stringify(event, null, 2));
 
-    const type = event.type || "Unknown";
-    const source = event.description || event.source || "No description";
+    // Handle SWAP event only
+    if (
+      event.type === 'SWAP' &&
+      event.account &&
+      event.nativeInputAmount &&
+      event.tokenOutputMint
+    ) {
+      const walletLabel = wallets[event.account] || event.account;
+      const solAmount = (event.nativeInputAmount / 1e9).toFixed(2);
+      const tokenMint = event.tokenOutputMint;
 
-    // Try to get a balance change
-    let balanceChange = "N/A";
-    if (event.nativeTransfers && event.nativeTransfers.length > 0) {
-      const amount = event.nativeTransfers[0].amount;
-      balanceChange = `${(amount / 1e9).toFixed(4)} SOL`;
+      const message = `🚨 NEW CALL 🚨
+
+🔹 Wallet: ${walletLabel}
+🔹 CA: ${tokenMint}
+🔹 Smart Wallets Invested: ${solAmount} SOL`;
+
+      try {
+        await sendTelegram(message);
+        console.log(`📤 Sent SWAP alert for wallet: ${walletLabel}`);
+      } catch (err) {
+        console.error('❌ Failed to send Telegram message:', err);
+      }
+
+    } else {
+      // Not a SWAP or missing data — skip
+      console.log(`ℹ️ Skipping non-SWAP or invalid event type: ${event.type}`);
     }
-
-    const message = `🔔 New Transaction from Helius!\n\n` +
-                    `📌 Type: ${type}\n` +
-                    `🧾 Source: ${source}\n` +
-                    `💰 Balance Change: ${balanceChange}`;
-
-    await sendTelegram(message);
   }
 
   res.status(200).send('ok');
 });
-// console.log('📩 Webhook HIT from Helius!');
-//  console.log('📦 Raw Payload:', JSON.stringify(req.body, null, 2));
-
-  //const events = req.body;
-
-//  if (!Array.isArray(events) || events.length === 0) {
-//    console.log('⚠️ Empty or invalid payload received');
-//    return res.status(200).send('no data');
-//  }
-
-//  for (const event of events) {
-//    console.log(`🔎 Event Type: ${event.type}`);
-
-//    if (
-//      event.type === 'SWAP' &&
-//      event.nativeInputAmount &&
-//      event.tokenOutputMint
-//    ) {
-//      const label = wallets[event.account] || event.account;
-//      const solAmount = (event.nativeInputAmount / 1e9).toFixed(2);
-//      const token = event.tokenOutputMint;
-
-//      const msg = `🚨 NEW CALL 🚨
-
-//🔹 Wallet: ${label}
-//🔹 CA: ${token}
-//🔹 Smart Wallets Invested: ${solAmount} SOL`;
-
- //     try {
-  //      await sendTelegram(msg);
- //       console.log(`📤 Sent Telegram alert for wallet: ${label}`);
- //     } catch (err) {
-//        console.error('❌ Failed to send Telegram message:', err);
-//      }    } else {
-//      console.log('ℹ️ Event didn’t match SWAP logic — skipping');
-//    }
-//  }
-
-//  res.status(200).send('ok');
-//});
 
 // Telegram alert function
 async function sendTelegram(text) {
