@@ -30,17 +30,36 @@ console.log("✅ Webhook server starting...");
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
-  const webhook = req.body;
-  console.log("📩 Webhook HIT from Helius!");
-  console.log("📦 Raw Payload:", JSON.stringify(webhook, null, 2));
+  const events = req.body;
 
-// Send ALL transactions to Telegram
-const message = `🔔 New Transaction from Helius!\n\n` +
-                `📌 Type: ${webhook.type}\n` +
-                `🧾 Source: ${webhook.description || "No description"}\n` +
-                `💰 Balance Change: ${JSON.stringify(webhook.accountData, null, 2)}`;
+  if (!Array.isArray(events) || events.length === 0) {
+    console.log('⚠️ Empty or invalid payload received');
+    return res.status(200).send('no data');
+  }
 
-await sendTelegram(message);
+  for (const event of events) {
+    console.log("📩 New Event:", JSON.stringify(event, null, 2));
+
+    const type = event.type || "Unknown";
+    const source = event.description || event.source || "No description";
+
+    // Try to get a balance change
+    let balanceChange = "N/A";
+    if (event.nativeTransfers && event.nativeTransfers.length > 0) {
+      const amount = event.nativeTransfers[0].amount;
+      balanceChange = `${(amount / 1e9).toFixed(4)} SOL`;
+    }
+
+    const message = `🔔 New Transaction from Helius!\n\n` +
+                    `📌 Type: ${type}\n` +
+                    `🧾 Source: ${source}\n` +
+                    `💰 Balance Change: ${balanceChange}`;
+
+    await sendTelegram(message);
+  }
+
+  res.status(200).send('ok');
+});
 // console.log('📩 Webhook HIT from Helius!');
 //  console.log('📦 Raw Payload:', JSON.stringify(req.body, null, 2));
 
@@ -79,8 +98,8 @@ await sendTelegram(message);
 //    }
 //  }
 
-  res.status(200).send('ok');
-});
+//  res.status(200).send('ok');
+//});
 
 // Telegram alert function
 async function sendTelegram(text) {
