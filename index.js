@@ -30,7 +30,6 @@ console.log("✅ Webhook server starting...");
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
-app.post('/webhook', async (req, res) => {
   try {
     console.log("📩 Webhook HIT from Helius!");
     console.log("📦 Payload:", JSON.stringify(req.body, null, 2));
