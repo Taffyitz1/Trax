@@ -40,7 +40,7 @@ const message = `🔔 New Transaction from Helius!\n\n` +
                 `🧾 Source: ${webhook.description || "No description"}\n` +
                 `💰 Balance Change: ${JSON.stringify(webhook.accountData, null, 2)}`;
 
-await sendTelegramMessage(message);
+await sendTelegram(message);
 // console.log('📩 Webhook HIT from Helius!');
 //  console.log('📦 Raw Payload:', JSON.stringify(req.body, null, 2));
 
