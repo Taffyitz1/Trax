@@ -30,7 +30,6 @@ console.log("✅ Webhook server starting...");
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
-app.post('/webhook', async (req, res) => {
   const events = req.body;
 
   if (!Array.isArray(events) || events.length === 0) {
