@@ -47,22 +47,23 @@ app.post('/webhook', async (req, res) => {
         continue;
       }
 
-      // Extract wallet account - prioritize the first token transfer's toUserAccount
-      const account = event.tokenTransfers[0].toUserAccount || 
-                      event.account || 
-                      "Unknown";
+      // 🛠 Identify buyer wallet from native transfer (who sent SOL)
+      const buyerAccount = (event.nativeTransfers || [])
+        .find(t => t.amount > 0)?.fromUserAccount 
+        || event.account 
+        || "Unknown";
 
-      // Get wallet label from your mapping or format the address
-      const walletLabel = wallets[account] || 
-                         (account !== "Unknown" ? `${account.slice(0, 4)}...${account.slice(-4)}` : "Unknown Wallet");
+      // 🛠 Get wallet label from mapping or fallback to shortened address
+      const walletLabel = wallets[buyerAccount] || 
+                         (buyerAccount !== "Unknown" ? `${buyerAccount.slice(0, 4)}...${buyerAccount.slice(-4)}` : "Unknown Wallet");
 
       // Get the token being bought (first token transfer's mint)
-      const tokenMint = event.tokenTransfers[0].mint || "N/A";
+      const tokenMint = event.tokenTransfers?.[0]?.mint || "N/A";
 
-      // Calculate SOL spent - prioritize nativeInputAmount, fallback to summing outgoing native transfers
+      // 🛠 Calculate SOL spent from the buyer wallet
       const solAmount = event.nativeInputAmount || 
                        (event.nativeTransfers || [])
-                         .filter(t => t.fromUserAccount === account)
+                         .filter(t => t.fromUserAccount === buyerAccount)
                          .reduce((sum, t) => sum + t.amount, 0);
 
       // Only proceed if we have valid investment data
@@ -78,7 +79,7 @@ app.post('/webhook', async (req, res) => {
         console.log('⏩ Skipping swap with insufficient data', {
           solAmount,
           tokenMint,
-          account
+          buyerAccount
         });
       }
     }
