@@ -40,20 +40,22 @@ app.post('/webhook', async (req, res) => {
   for (const event of events) {
     console.log("📩 New Event:", JSON.stringify(event, null, 2));
 
-    const type = event.type || "Unknown";
-    const source = event.description || event.source || "No description";
-
-    // Try to get a balance change
-    let balanceChange = "N/A";
+    // Extract relevant data - maintaining your existing fallbacks
+    const account = event.account || "Unknown";
+    const walletLabel = wallets[account] || `${account.slice(0, 4)}...${account.slice(-4)}`;
+    const tokenMint = event.tokenTransfers?.[0]?.mint || event.tokenOutputMint || "N/A";
+    
+    // Calculate SOL amount (using your existing nativeTransfers logic)
+    let solAmount = 0;
     if (event.nativeTransfers && event.nativeTransfers.length > 0) {
-      const amount = event.nativeTransfers[0].amount;
-      balanceChange = `${(amount / 1e9).toFixed(4)} SOL`;
+      solAmount = event.nativeTransfers[0].amount;
     }
 
-    const message = `🔔 New Transaction from Helius!\n\n` +
-                    `📌 Type: ${type}\n` +
-                    `🧾 Source: ${source}\n` +
-                    `💰 Balance Change: ${balanceChange}`;
+    // NEW CALL format message
+    const message = `🚨 NEW CALL 🚨\n\n` +
+                   `🔹 Wallet: ${walletLabel}\n` +
+                   `🔹 CA: ${tokenMint}\n` +
+                   `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
 
     await sendTelegram(message);
   }
