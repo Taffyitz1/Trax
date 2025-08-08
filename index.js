@@ -21,7 +21,7 @@ try {
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
 
-// Optional: Notify Telegram when bot starts
+// Optional: No async (tify Telegram when bot starts
 sendTelegram("✅ Webhook bot is live and tracking...").catch(err =>
   console.error("❌ Failed to send startup message:", err)
 );
@@ -40,27 +40,34 @@ app.post('/webhook', async (req, res) => {
   for (const event of events) {
     console.log("📩 New Event:", JSON.stringify(event, null, 2));
 
-    // Extract wallet account
-    const account = event.account ||
-                    event.tokenTransfers?.[0]?.fromUserAccount ||
-                    event.tokenTransfers?.[0]?.toUserAccount ||
-                    "Unknown";
+    // Skip if not a swap event
+    if (event.type !== 'SWAP') {
+      console.log('↩️ Skipping non-swap event:', event.type);
+      continue;
+    }
 
+    // Extract swap details
+    const account = event.account || "Unknown";
     const walletLabel = wallets[account] || `${account.slice(0, 4)}...${account.slice(-4)}`;
+    
+    // Get output token (the one being bought)
+    const tokenMint = event.tokenOutputMint || 
+                      event.tokenTransfers?.find(t => t.toUserAccount === account)?.mint || 
+                      "N/A";
 
-    // Extract CA (token mint)
-    const tokenMint = event.tokenTransfers?.[0]?.mint || event.tokenOutputMint || "N/A";
+    // Get SOL input amount (what was spent)
+    const solAmount = event.nativeInputAmount || 
+                     event.nativeTransfers?.find(t => t.fromUserAccount === account)?.amount ||
+                     0;
 
-    // Sum SOL amounts from all native transfers
-    const solAmount = (event.nativeTransfers || []).reduce((sum, t) => sum + t.amount, 0);
-
-    // Message format with CA in monospace
+    // Format message
     const message = `🚨 NEW CALL 🚨\n\n` +
-                    `🔹 Wallet: ${walletLabel}\n` +
-                    `🔹 CA: \`${tokenMint}\`\n` + // CA in monospace
-                    `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
+                   `🔹 Wallet: ${walletLabel}\n` +
+                   `🔹 CA: \`${tokenMint}\`\n` +
+                   `🔹 SOL Invested: ${(solAmount / 1e9).toFixed(2)} SOL\n` +
+                   `🔹 Dex: ${event.source || 'Unknown'}`;
 
-    await sendTelegram(message, "Markdown"); // Pass Markdown parse mode
+    await sendTelegram(message, "Markdown");
   }
 
   res.status(200).send('ok');
