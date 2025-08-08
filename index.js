@@ -40,27 +40,40 @@ app.post('/webhook', async (req, res) => {
   for (const event of events) {
     console.log("📩 New Event:", JSON.stringify(event, null, 2));
 
-    // Extract wallet account - using the method that worked before
-    const account = event.account || 
-                   event.tokenTransfers?.[0]?.fromUserAccount || 
-                   event.tokenTransfers?.[0]?.toUserAccount || 
+    // 1. IMPROVED ACCOUNT DETECTION - Buyer's wallet first
+    const account = event.tokenTransfers?.[0]?.fromUserAccount || // Primary source
+                   event.account ||                               // Fallback 1
+                   event.nativeTransfers?.[0]?.fromUserAccount || // Fallback 2
                    "Unknown";
 
-    // Wallet label from wallets.json with proper fallback
-    const walletLabel = wallets[account] || 
-                       (account !== "Unknown" ? `${account.slice(0, 4)}...${account.slice(-4)}` : "Unknown Wallet");
+    // 2. ENHANCED WALLET LABELING - With verification
+    const walletTag = wallets[account] || null;
+    const walletLabel = walletTag 
+      ? `${walletTag} (${account.slice(0, 4)}...${account.slice(-4)})` 
+      : `${account.slice(0, 4)}...${account.slice(-4)}`;
 
-    // Extract token mint (CA) - using working method
-    const tokenMint = event.tokenTransfers?.[0]?.mint || event.tokenOutputMint || "N/A";
+    // 3. ACCURATE TOKEN MINT DETECTION
+    const tokenMint = event.tokenOutputMint ||                   // Primary source
+                     event.tokenTransfers?.[0]?.mint ||           // Fallback
+                     "N/A";
 
-    // SOL amount calculation - summing all native transfers as originally
-    const solAmount = (event.nativeTransfers || []).reduce((sum, t) => sum + t.amount, 0);
+    // 4. CORRECT SOL CALCULATION - Only outgoing transfers
+    const solAmount = (event.nativeTransfers || [])
+      .filter(t => t.fromUserAccount === account)
+      .reduce((sum, t) => sum + t.amount, 0);
 
-    // Your exact desired message format
+    // Skip if no valid investment detected
+    if (solAmount <= 0) {
+      console.log('⏩ Skipping - No SOL invested:', account);
+      continue;
+    }
+
+    // 5. VERIFIED MESSAGE FORMAT
     const message = `🚨 NEW CALL 🚨\n\n` +
                    `🔹 Wallet: ${walletLabel}\n` +
                    `🔹 CA: \`${tokenMint}\`\n` +
-                   `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
+                   `🔹 SOL Invested: ${(solAmount / 1e9).toFixed(2)} SOL` +
+                   (event.source ? `\n🔹 DEX: ${event.source}` : '');
 
     await sendTelegram(message, "Markdown");
   }
