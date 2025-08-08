@@ -30,6 +30,7 @@ console.log("✅ Webhook server starting...");
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
+app.post('/webhook', async (req, res) => {
   const events = req.body;
 
   if (!Array.isArray(events) || events.length === 0) {
@@ -40,24 +41,22 @@ app.post('/webhook', async (req, res) => {
   for (const event of events) {
     console.log("📩 New Event:", JSON.stringify(event, null, 2));
 
-    // 1. IMPROVED ACCOUNT DETECTION - Buyer's wallet first
-    const account = event.tokenTransfers?.[0]?.fromUserAccount || // Primary source
-                   event.account ||                               // Fallback 1
-                   event.nativeTransfers?.[0]?.fromUserAccount || // Fallback 2
-                   "Unknown";
+    // 1. RELIABLE ACCOUNT DETECTION (event.account first)
+    const account = event.account || 
+                    event.tokenTransfers?.[0]?.fromUserAccount || 
+                    event.tokenTransfers?.[0]?.toUserAccount || 
+                    "Unknown";
 
-    // 2. ENHANCED WALLET LABELING - With verification
-    const walletTag = wallets[account] || null;
-    const walletLabel = walletTag 
-      ? `${walletTag} (${account.slice(0, 4)}...${account.slice(-4)})` 
-      : `${account.slice(0, 4)}...${account.slice(-4)}`;
+    // 2. WALLET LABEL (tag from wallets.json or shortened address)
+    const walletLabel = wallets[account] || 
+                       (account !== "Unknown" ? `${account.slice(0, 4)}...${account.slice(-4)}` : "Unknown Wallet");
 
-    // 3. ACCURATE TOKEN MINT DETECTION
-    const tokenMint = event.tokenOutputMint ||                   // Primary source
-                     event.tokenTransfers?.[0]?.mint ||           // Fallback
-                     "N/A";
+    // 3. CONTRACT ADDRESS (CA) DETECTION
+    const CA = event.tokenTransfers?.[0]?.mint || 
+               event.tokenOutputMint || 
+               "N/A";
 
-    // 4. CORRECT SOL CALCULATION - Only outgoing transfers
+    // 4. ACCURATE SOL CALCULATION - Only outgoing transfers from this account
     const solAmount = (event.nativeTransfers || [])
       .filter(t => t.fromUserAccount === account)
       .reduce((sum, t) => sum + t.amount, 0);
@@ -68,12 +67,11 @@ app.post('/webhook', async (req, res) => {
       continue;
     }
 
-    // 5. VERIFIED MESSAGE FORMAT
+    // 5. MESSAGE FORMAT FROM WORKING VERSION (with CA in monospace)
     const message = `🚨 NEW CALL 🚨\n\n` +
                    `🔹 Wallet: ${walletLabel}\n` +
-                   `🔹 CA: \`${tokenMint}\`\n` +
-                   `🔹 SOL Invested: ${(solAmount / 1e9).toFixed(2)} SOL` +
-                   (event.source ? `\n🔹 DEX: ${event.source}` : '');
+                   `🔹 CA: \`${CA}\`\n` +
+                   `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
 
     await sendTelegram(message, "Markdown");
   }
