@@ -40,24 +40,27 @@ app.post('/webhook', async (req, res) => {
   for (const event of events) {
     console.log("📩 New Event:", JSON.stringify(event, null, 2));
 
-    // Extract relevant data - maintaining your existing fallbacks
-    const account = event.account || "Unknown";
+    // Extract wallet account
+    const account = event.account ||
+                    event.tokenTransfers?.[0]?.fromUserAccount ||
+                    event.tokenTransfers?.[0]?.toUserAccount ||
+                    "Unknown";
+
     const walletLabel = wallets[account] || `${account.slice(0, 4)}...${account.slice(-4)}`;
+
+    // Extract CA (token mint)
     const tokenMint = event.tokenTransfers?.[0]?.mint || event.tokenOutputMint || "N/A";
-    
-    // Calculate SOL amount (using your existing nativeTransfers logic)
-    let solAmount = 0;
-    if (event.nativeTransfers && event.nativeTransfers.length > 0) {
-      solAmount = event.nativeTransfers[0].amount;
-    }
 
-    // NEW CALL format message
+    // Sum SOL amounts from all native transfers
+    const solAmount = (event.nativeTransfers || []).reduce((sum, t) => sum + t.amount, 0);
+
+    // Message format with CA in monospace
     const message = `🚨 NEW CALL 🚨\n\n` +
-                   `🔹 Wallet: ${walletLabel}\n` +
-                   `🔹 CA: ${tokenMint}\n` +
-                   `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
+                    `🔹 Wallet: ${walletLabel}\n` +
+                    `🔹 CA: \`${tokenMint}\`\n` + // CA in monospace
+                    `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
 
-    await sendTelegram(message);
+    await sendTelegram(message, "Markdown"); // Pass Markdown parse mode
   }
 
   res.status(200).send('ok');
