@@ -30,47 +30,64 @@ console.log("✅ Webhook server starting...");
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
-  const events = req.body;
+  try {
+    const events = req.body;
 
-  if (!Array.isArray(events) || events.length === 0) {
-    console.log('⚠️ Empty or invalid payload received');
-    return res.status(200).send('no data');
-  }
-
-  for (const event of events) {
-    console.log("📩 New Event:", JSON.stringify(event, null, 2));
-
-    // Skip if not a swap event
-    if (event.type !== 'SWAP') {
-      console.log('↩️ Skipping non-swap event:', event.type);
-      continue;
+    if (!Array.isArray(events) || events.length === 0) {
+      console.log('⚠️ Empty or invalid payload received');
+      return res.status(200).send('no data');
     }
 
-    // Extract swap details
-    const account = event.account || "Unknown";
-    const walletLabel = wallets[account] || `${account.slice(0, 4)}...${account.slice(-4)}`;
-    
-    // Get output token (the one being bought)
-    const tokenMint = event.tokenOutputMint || 
-                      event.tokenTransfers?.find(t => t.toUserAccount === account)?.mint || 
-                      "N/A";
+    for (const event of events) {
+      console.log("📩 New Event:", JSON.stringify(event, null, 2));
 
-    // Get SOL input amount (what was spent)
-    const solAmount = event.nativeInputAmount || 
-                     event.nativeTransfers?.find(t => t.fromUserAccount === account)?.amount ||
-                     0;
+      // Skip if not a swap event or missing critical data
+      if (event.type !== 'SWAP' || !event.tokenTransfers?.length) {
+        console.log('↩️ Skipping non-swap event or event without token transfers');
+        continue;
+      }
 
-    // Format message
-    const message = `🚨 NEW CALL 🚨\n\n` +
-                   `🔹 Wallet: ${walletLabel}\n` +
-                   `🔹 CA: \`${tokenMint}\`\n` +
-                   `🔹 SOL Invested: ${(solAmount / 1e9).toFixed(2)} SOL\n` +
-                   `🔹 Dex: ${event.source || 'Unknown'}`;
+      // Extract wallet account - prioritize the first token transfer's toUserAccount
+      const account = event.tokenTransfers[0].toUserAccount || 
+                      event.account || 
+                      "Unknown";
 
-    await sendTelegram(message, "Markdown");
+      // Get wallet label from your mapping or format the address
+      const walletLabel = wallets[account] || 
+                         (account !== "Unknown" ? `${account.slice(0, 4)}...${account.slice(-4)}` : "Unknown Wallet");
+
+      // Get the token being bought (first token transfer's mint)
+      const tokenMint = event.tokenTransfers[0].mint || "N/A";
+
+      // Calculate SOL spent - prioritize nativeInputAmount, fallback to summing outgoing native transfers
+      const solAmount = event.nativeInputAmount || 
+                       (event.nativeTransfers || [])
+                         .filter(t => t.fromUserAccount === account)
+                         .reduce((sum, t) => sum + t.amount, 0);
+
+      // Only proceed if we have valid investment data
+      if (solAmount > 0 && tokenMint !== "N/A") {
+        const message = `🚨 NEW CALL 🚨\n\n` +
+                      `🔹 Wallet: ${walletLabel}\n` +
+                      `🔹 CA: \`${tokenMint}\`\n` +
+                      `🔹 SOL Invested: ${(solAmount / 1e9).toFixed(2)} SOL` +
+                      (event.source ? `\n🔹 Dex: ${event.source}` : '');
+
+        await sendTelegram(message, "Markdown");
+      } else {
+        console.log('⏩ Skipping swap with insufficient data', {
+          solAmount,
+          tokenMint,
+          account
+        });
+      }
+    }
+
+    res.status(200).send('ok');
+  } catch (err) {
+    console.error('❌ Webhook processing error:', err);
+    res.status(500).send('error');
   }
-
-  res.status(200).send('ok');
 });
 // console.log('📩 Webhook HIT from Helius!');
 //  console.log('📦 Raw Payload:', JSON.stringify(req.body, null, 2));
