@@ -59,7 +59,7 @@ app.post('/webhook', async (req, res) => {
     // Your exact desired message format
     const message = `🚨 NEW CALL 🚨\n\n` +
                    `🔹 Wallet: ${walletLabel}\n` +
-                   `🔹 CA: \\`${tokenMint}\\`\n` +
+                  `🔹 CA: \\\`${tokenMint}\\\`\n` + 
                    `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
 
     await sendTelegram(message, "Markdown");
