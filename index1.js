@@ -13,48 +13,22 @@ app.use(express.json());
 let wallets = {};
 try {
   wallets = JSON.parse(fs.readFileSync('./wallets.json', 'utf8'));
-  console.log("📂 Loaded wallets:", Object.keys(wallets).length, "wallets");
+  console.log("📂 Loaded wallets:", wallets);
 } catch (err) {
   console.error("❌ Failed to load wallets.json:", err);
-  process.exit(1); // Exit if wallets.json can't be loaded
 }
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
 
-// Track seen transactions to avoid duplicates
-const seenTransactions = new Set();
+const seenTokens = new Set(); 
 
-// Telegram alert function with MarkdownV2 support
-async function sendTelegram(text, parse_mode = "MarkdownV2") {
-  const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-  const body = { 
-    chat_id: chatId, 
-    text,
-    parse_mode
-  };
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await response.json();
-    if (!data.ok) {
-      throw new Error(data.description || 'Unknown Telegram error');
-    }
-    return data;
-  } catch (err) {
-    console.error('❌ Telegram send error:', err);
-    throw err;
-  }
-}
-
-// Startup message
-sendTelegram("✅ Webhook bot is live and tracking...").catch(err => 
-  console.error("❌ Startup message failed:", err)
+// Optional: No async (tify Telegram when bot starts
+sendTelegram("✅ Webhook bot is live and tracking...").catch(err =>
+  console.error("❌ Failed to send startup message:", err)
 );
+
+console.log("✅ Webhook server starting...");
 
 // Webhook endpoint
 app.post('/webhook', async (req, res) => {
@@ -66,66 +40,66 @@ app.post('/webhook', async (req, res) => {
   }
 
   for (const event of events) {
-    try {
-      console.log("📩 New Event:", JSON.stringify(event, null, 2));
+    console.log("📩 New Event:", JSON.stringify(event, null, 2));
 
-      // Skip if not a swap or missing data
-      if (event.type !== 'SWAP' || !event.tokenTransfers?.length) {
-        console.log('↩️ Skipping non-swap event');
-        continue;
-      }
+    // Extract wallet account - using the method that worked before
+    const account = event.account || 
+                   event.tokenTransfers?.[0]?.fromUserAccount || 
+                   event.tokenTransfers?.[0]?.toUserAccount || 
+                   "Unknown";
 
-      // Get buyer wallet address
-      const account = event.tokenTransfers[0].fromUserAccount || event.account;
-      if (!account || !wallets[account]) {
-        console.log(`⏩ Skipping - Wallet not in tracking list: ${account}`);
-        continue;
-      }
-
-      // Get token being bought
-      const tokenMint = event.tokenOutputMint || event.tokenTransfers[0].mint;
-      
-      // Create unique transaction ID to prevent duplicates
-      const txId = `${account}:${tokenMint}:${event.signature}`;
-      if (seenTransactions.has(txId)) {
-        console.log('⏩ Skipping duplicate transaction:', txId);
-        continue;
-      }
-      seenTransactions.add(txId);
-
-      // Calculate SOL spent (only outgoing from buyer)
-      const solAmount = (event.nativeTransfers || [])
-        .filter(t => t.fromUserAccount === account)
-        .reduce((sum, t) => sum + t.amount, 0);
-
-      if (solAmount <= 0) {
-        console.log('⏩ Skipping - No SOL invested');
-        continue;
-      }
-
-      // Format message with proper escaping
-      const escapeMd = (text) => String(text).replace(/[_*[\]()~`>#+-=|{}.!]/g, '\\$&');
-      const message = `🚨 NEW CALL 🚨\n\n` +
-                     `🔹 Wallet: ${escapeMd(wallets[account])}\n` +
-                     `🔹 CA: \`${escapeMd(tokenMint)}\`\n` +
-                     `🔹 SOL Invested: ${escapeMd((solAmount / 1e9).toFixed(2))} SOL` +
-                     (event.source ? `\n🔹 DEX: ${escapeMd(event.source)}` : '');
-
-      await sendTelegram(message);
-      console.log(`📤 Alert sent for ${wallets[account]} buying ${tokenMint}`);
-
-    } catch (err) {
-      console.error('⚠️ Error processing event:', err);
+    // Skip if wallet not in wallets.json
+    if (!wallets[account]) {
+      console.log(`⏩ Skipping - Wallet not in tracking list: ${account}`);
+      continue;
     }
+    const walletLabel = wallets[account]; // Only uses names from wallets.json
+
+    // Extract token mint (CA) - using working method
+    const tokenMint = event.tokenTransfers?.[0]?.mint || event.tokenOutputMint || "N/A";
+
+    // Skip if we've already alerted about this token
+    if (seenTokens.has(tokenMint)) {
+      console.log(`⏩ Skipping duplicate token: ${tokenMint}`);
+      continue;
+    }
+    seenTokens.add(tokenMint);
+
+    // SOL amount calculation - summing all native transfers as originally
+    const solAmount = (event.nativeTransfers || []).reduce((sum, t) => sum + t.amount, 0);
+
+    // Your exact desired message format
+    const message = `🚨 NEW CALL 🚨\n\n` +
+                   `🔹 Wallet: ${walletLabel}\n` +
+                   `🔹 CA: \`${tokenMint}\`\n` +
+                   `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
+
+    await sendTelegram(message, "Markdown");
   }
 
   res.status(200).send('ok');
 });
 
+// Telegram alert function
+async function sendTelegram(text) {
+  const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text })
+  });
+
+  const data = await response.json();
+  console.log("📨 Telegram API response:", data);
+
+  if (!data.ok) {
+    throw new Error(data.description || 'Unknown Telegram error');
+  }
+}
+
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🟢 Tracker running on port ${PORT}`);
-  // Clear seen transactions every hour to prevent memory buildup
-  setInterval(() => seenTransactions.clear(), 60 * 60 * 1000);
 });
