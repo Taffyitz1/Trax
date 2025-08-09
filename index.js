@@ -61,7 +61,7 @@ app.post('/webhook', async (req, res) => {
 const message = `🚨 NEW CALL 🚨
 
 🔹Wallet: ${walletLabel}
-🔹CA: \\`${ca}\\`
+🔹CA: \`${ca}\`
 🔹Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
  //   await sendTelegram(message, "Markdown");
   }
