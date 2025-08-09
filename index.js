@@ -66,7 +66,7 @@ const message = `🚨 NEW CALL 🚨
 await sendTelegram(message, "MarkdownV2");
 
   res.status(200).send('ok');
- });
+    
 // Telegram alert function
 
 async function sendTelegram(text) {
