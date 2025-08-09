@@ -2,7 +2,7 @@
   "name": "wallet-tracker-bot",
   "version": "1.0.0",
   "type": "module",
-  "main": "index1.js",
+  "main": "index.js",
   "dependencies": {
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
