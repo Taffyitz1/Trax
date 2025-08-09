@@ -62,7 +62,7 @@ app.post('/webhook', async (req, res) => {
     if (seenTokens.has(tokenMint)) {
       console.log(`⏩ Skipping duplicate token: ${tokenMint}`);
       continue;
-    }
+      
     seenTokens.add(tokenMint);
 
     // SOL amount calculation - summing all native transfers as originally
