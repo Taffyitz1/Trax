@@ -59,10 +59,9 @@ app.post('/webhook', async (req, res) => {
     const ca = tokenMint;
     // Your exact desired message format
 const message = `🚨 NEW CALL 🚨
-
 🔹 Wallet: ${walletLabel}
-🔹 CA: \`${tokenMint}\`  // Only CA in monospace
-🔹 SOL Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
+🔹 CA: \`${ca}\`  // Only CA in monospace
+🔹 Smart wallet Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
 
 await sendTelegram(message, "MarkdownV2");  // Use MarkdownV2 for better reliability  }
 
