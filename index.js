@@ -63,11 +63,10 @@ const message = `🚨 NEW CALL 🚨
 🔹 CA: \`${ca}\`  // Only CA in monospace
 🔹 Smart wallet Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
 
-await sendTelegram(message, "MarkdownV2");  // Use MarkdownV2 for better reliability
+await sendTelegram(message, "MarkdownV2");
 
   res.status(200).send('ok');
-});
-
+ });
 // Telegram alert function
 
 async function sendTelegram(text) {
