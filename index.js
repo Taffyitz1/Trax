@@ -50,7 +50,10 @@ app.post('/webhook', async (req, res) => {
     // Wallet label from wallets.json with proper fallback
     const walletLabel = wallets[account] || 
                        (account !== "Unknown" ? `${account.slice(0, 4)}...${account.slice(-4)}` : "Unknown Wallet");
-
+    if (!wallets[account]) {
+      console.log(`⏭️ Skipping wallet not in wallets.json: ${account}`);
+      continue;
+    }
     // Extract token mint (CA) - using working method
     const tokenMint = event.tokenTransfers?.[0]?.mint || event.tokenOutputMint || "N/A";
     // Skip if this tokenMint has already been sent once
