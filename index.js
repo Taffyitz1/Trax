@@ -45,7 +45,11 @@ app.post('/webhook', async (req, res) => {
                    event.tokenTransfers?.[0]?.fromUserAccount || 
                    event.tokenTransfers?.[0]?.toUserAccount || 
                    "Unknown";
-
+// Skip wallets not in wallets.json
+   if (!wallets[account]) {
+     console.log(`⏭️ Skipping wallet not in wallets.json: ${account}`);
+     continue;
+   }
     // Wallet label from wallets.json with proper fallback
     const walletLabel = wallets[account] || 
                        (account !== "Unknown" ? `${account.slice(0, 4)}...${account.slice(-4)}` : "Unknown Wallet");
