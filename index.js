@@ -23,7 +23,7 @@ const chatId = process.env.TELEGRAM_CHAT_ID;
 
 const sentTokenMints = new Set();
 // Optional: No async (tify Telegram when bot starts
-sendTelegram("✅ Webhook bot is live and tracking...").catch(err =>
+sendTelegram(" I'm still active, just checking in 😁").catch(err =>
   console.error("❌ Failed to send startup message:", err)
 );
 
