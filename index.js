@@ -55,7 +55,28 @@ app.post('/webhook', async (req, res) => {
       continue;
     }
     // Extract token mint (CA) - using working method
-    const tokenMint = event.tokenTransfers?.[0]?.mint || event.tokenOutputMint || "N/A";
+  const stableAndBaseMints = [
+  "so11111111111111111111111111111111111111112", // SOL
+  "epjfwdd5aufqssqem2qn1xzybapc8g4weggkzwydt1v", // USDC
+  "es9vmfrzacer...nyb"                           // USDT
+];
+
+const newTokenMints = event.tokenTransfers
+  ?.filter(t => 
+    t.toUserAccount?.toLowerCase() === account.toLowerCase() &&
+    !stableAndBaseMints.includes(t.mint?.toLowerCase())
+  )
+  .map(t => t.mint) || [];
+
+const fallbackMint = 
+  event.tokenOutputMint || 
+  event.mint || 
+  event.token?.mint || 
+  "N/A";
+
+const allMints = [...new Set([...newTokenMints, fallbackMint])]
+  .filter(m => m && m !== "N/A");
+    
     // Skip if this tokenMint has already been sent once
     if (sentTokenMints.has(tokenMint)) {
       console.log(`⏭️ Skipping already-sent tokenMint: ${tokenMint}`);
