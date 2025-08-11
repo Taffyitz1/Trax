@@ -21,7 +21,7 @@ try {
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
 
-const sentTokenMints = new Set();
+//const sentTokenMints = new Set();
 // Optional: No async (tify Telegram when bot starts
 sendTelegram("✅ Webhook bot is live and tracking...").catch(err =>
   console.error("❌ Failed to send startup message:", err)
@@ -50,21 +50,21 @@ app.post('/webhook', async (req, res) => {
     // Wallet label from wallets.json with proper fallback
     const walletLabel = wallets[account] || 
                        (account !== "Unknown" ? `${account.slice(0, 4)}...${account.slice(-4)}` : "Unknown Wallet");
-    if (!wallets[account]) {
-      console.log(`⏭️ Skipping wallet not in wallets.json: ${account}`);
-      continue;
+   // if (!wallets[account]) {
+    //  console.log(`⏭️ Skipping wallet not in wallets.json: ${account}`);
+    //  continue;
     }
     // Extract token mint (CA) - using working method
     const tokenMint = event.tokenTransfers?.[0]?.mint || event.tokenOutputMint || "N/A";
     // Skip if this tokenMint has already been sent once
-    if (sentTokenMints.has(tokenMint)) {
-      console.log(`⏭️ Skipping already-sent tokenMint: ${tokenMint}`);
-      continue;
+    //if (sentTokenMints.has(tokenMint)) {
+   //   console.log(`⏭️ Skipping already-sent tokenMint: ${tokenMint}`);
+  //    continue;
     }
 
 // Store the tokenMint
-    sentTokenMints.add(tokenMint);
-    console.log(`Added token mint to tracking: ${tokenMint}`);
+ //   sentTokenMints.add(tokenMint);
+ //   console.log(`Added token mint to tracking: ${tokenMint}`);
     // SOL amount calculation - summing all native transfers as originally
     const solAmount = (event.nativeTransfers || []).reduce((sum, t) => sum + t.amount, 0);
 
