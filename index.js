@@ -69,11 +69,14 @@ app.post('/webhook', async (req, res) => {
     const solAmount = (event.nativeTransfers || []).reduce((sum, t) => sum + t.amount, 0);
 
     // Your exact desired message format
-    const message = `🚨 NEW CALL 🚨\n\n` +
-                   `🔹 Wallet: ${walletLabel}\n` +
-                   `🔹 CA: ${tokenMint} \n` +
-                   `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
-                   `🔹 View on Solscan: https://solscan.io/token/${tokenMint}\n`
+    const message = `
+    🚨 NEW CALL 🚨
+
+    🔹 Wallet: ${walletLabel}
+    🔹 CA: ${tokenMint}
+    🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL
+    🔹 View on Solscan: https://solscan.io/token/${tokenMint}
+    `;
   //  await sendTelegram(message, "Markdown");
   }
 
