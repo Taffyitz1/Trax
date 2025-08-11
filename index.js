@@ -77,7 +77,7 @@ app.post('/webhook', async (req, res) => {
     🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL
     🔹 View on Solscan: https://solscan.io/token/${tokenMint}
     `;
-  //  await sendTelegram(message, "Markdown");
+    await sendTelegram(message);
   }
 
   res.status(200).send('ok');
