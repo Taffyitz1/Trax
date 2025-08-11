@@ -55,7 +55,34 @@ app.post('/webhook', async (req, res) => {
     //  continue;
     }
     // Extract token mint (CA) - using working method
-    const tokenMint = event.tokenTransfers?.[0]?.mint || event.tokenOutputMint || "N/A";
+    const stableAndBaseMints = [
+      "so11111111111111111111111111111111111111112", // SOL
+      "epjfwdd5aufqssqem2qn1xzybapc8g4weggkzwydt1v", // USDC
+      "es9vmfrzacersdjq5jyuh...nyb"                 // USDT (shortened for example)
+    ];
+
+// 1. Check tokenTransfers for incoming tokens (toUserAccount = user, not a base/stable)
+    const incomingTokenMints = event.tokenTransfers
+      ?.filter(t => 
+        t.toUserAccount?.toLowerCase() === account.toLowerCase() && // Received by user
+        !stableAndBaseMints.includes(t.mint?.toLowerCase())        // Not a base/stablecoin
+      )
+      .map(t => t.mint) || [];
+
+// 2. Fallback: Check if the event explicitly defines input/output mints
+// (Prioritize tokenInputMint or similar fields if available)
+    const fallbackMint = 
+      event.tokenInputMint ||    // Some DEXs label the incoming token explicitly
+      event.tokenInMint ||       // Alternative common field name
+      event.destinationMint ||   // Sometimes called "destination"
+      event.tokenOutputMint ||   // Last resort (but may be outgoing token)
+      event.mint || 
+      event.token?.mint || 
+      "N/A";
+
+// 3. Combine and dedupe, preferring incoming transfers over fallback
+    const tokenMint = [...new Set([...incomingTokenMints, fallbackMint])]
+      .find(m => m && m !== "N/A") || "N/A";
     // Skip if this tokenMint has already been sent once
     //if (sentTokenMints.has(tokenMint)) {
    //   console.log(`⏭️ Skipping already-sent tokenMint: ${tokenMint}`);
