@@ -99,9 +99,14 @@ const tokenMint = [...newTokenMints, fallbackMint]
     🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL
     🔹 View on Solscan: https://solscan.io/token/${tokenMint}
     `;
-    await sendTelegram(message);
-  }
-
+    console.log("📝 Message to send:", message);
+    
+    try {
+      await sendTelegram(message);
+    } catch (err) {
+      console.error(`❌ Telegram failed (mint: ${tokenMint})`); // No stack trace
+  // Optional: Send to error tracking service (Sentry, etc.)
+    }
   res.status(200).send('ok');
 });
 
