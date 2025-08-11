@@ -23,7 +23,7 @@ const chatId = process.env.TELEGRAM_CHAT_ID;
 
 const sentTokenMints = new Set();
 // Optional: No async (tify Telegram when bot starts
-sendTelegram(" I'm still active, just checking in 😁").catch(err =>
+sendTelegram("✅ Webhook bot is live and tracking...").catch(err =>
   console.error("❌ Failed to send startup message:", err)
 );
 
@@ -55,29 +55,7 @@ app.post('/webhook', async (req, res) => {
       continue;
     }
     // Extract token mint (CA) - using working method
-  const stableAndBaseMints = [
-  "so11111111111111111111111111111111111111112", // SOL
-  "epjfwdd5aufqssqem2qn1xzybapc8g4weggkzwydt1v", // USDC
-  "es9vmfrzacer...nyb"                           // USDT
-];
-
-const newTokenMints = event.tokenTransfers
-  ?.filter(t => 
-    t.toUserAccount?.toLowerCase() === account.toLowerCase() &&
-    !stableAndBaseMints.includes(t.mint?.toLowerCase())
-  )
-  .map(t => t.mint) || [];
-
-const fallbackMint = 
-  event.tokenOutputMint || 
-  event.mint || 
-  event.token?.mint || 
-  "N/A";
-
-const tokenMint = [...newTokenMints, fallbackMint]
-  .map(m => m?.toLowerCase())
-  .find(m => m && m !== "n/a" && !stableAndBaseMints.includes(m));
-    
+    const tokenMint = event.tokenTransfers?.[0]?.mint || event.tokenOutputMint || "N/A";
     // Skip if this tokenMint has already been sent once
     if (sentTokenMints.has(tokenMint)) {
       console.log(`⏭️ Skipping already-sent tokenMint: ${tokenMint}`);
@@ -91,22 +69,14 @@ const tokenMint = [...newTokenMints, fallbackMint]
     const solAmount = (event.nativeTransfers || []).reduce((sum, t) => sum + t.amount, 0);
 
     // Your exact desired message format
-    const message = `
-    🚨 NEW CALL 🚨
+    const message = `🚨 NEW CALL 🚨\n\n` +
+                   `🔹 Wallet: ${walletLabel}\n` +
+                   `🔹 CA: \${tokenMint}\ \n` +
+                   `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
 
-    🔹 Wallet: ${walletLabel}
-    🔹 CA: ${tokenMint}
-    🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL
-    🔹 View on Solscan: https://solscan.io/token/${tokenMint}
-    `;
-    console.log("📝 Message to send:", message);
-    
-    try {
-      await sendTelegram(message);
-    } catch (err) {
-      console.error(`❌ Telegram failed (mint: ${tokenMint})`); // No stack trace
-  // Optional: Send to error tracking service (Sentry, etc.)
-    }
+    await sendTelegram(message, "Markdown");
+  }
+
   res.status(200).send('ok');
 });
 
