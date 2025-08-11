@@ -75,7 +75,7 @@ app.post('/webhook', async (req, res) => {
                    `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
 
   //  await sendTelegram(message, "Markdown");
-  //}
+  }
 
   res.status(200).send('ok');
 });
