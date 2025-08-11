@@ -74,8 +74,9 @@ const fallbackMint =
   event.token?.mint || 
   "N/A";
 
-const allMints = [...new Set([...newTokenMints, fallbackMint])]
-  .filter(m => m && m !== "N/A");
+const tokenMint = [...newTokenMints, fallbackMint]
+  .map(m => m?.toLowerCase())
+  .find(m => m && m !== "n/a" && !stableAndBaseMints.includes(m));
     
     // Skip if this tokenMint has already been sent once
     if (sentTokenMints.has(tokenMint)) {
