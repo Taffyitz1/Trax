@@ -55,46 +55,50 @@ app.post('/webhook', async (req, res) => {
     //  continue;
     }
     const stableAndBaseMints = [
-    "o11111111111111111111111111111111111111111", // SOL
-    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
-    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"                 // USDT
-].map(m => m.toLowerCase()); // force lowercase for matching
+"So11111111111111111111111111111111111111111", // SOL
+"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
+"Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"                 // USDT
+].map(m => m.toLowerCase());
 
 function extractBuyTokenMint(event, userAccount) {
-    userAccount = userAccount.toLowerCase();
+userAccount = userAccount.toLowerCase();
 
-    // 1. Prefer tokenTransfers
-    if (event.tokenTransfers?.length >= 2) {
-        const outgoingTransfer = event.tokenTransfers.find(t => 
-            t.fromUserAccount?.toLowerCase() === userAccount
-        );
-        const incomingTransfer = event.tokenTransfers.find(t => 
-            t.toUserAccount?.toLowerCase() === userAccount
-        );
+if (event.tokenTransfers?.length >= 2) {  
+    // Find index of outgoing stable  
+    const outgoingIndex = event.tokenTransfers.findIndex(t =>   
+        t.fromUserAccount?.toLowerCase() === userAccount &&  
+        stableAndBaseMints.includes(t.mint?.toLowerCase())  
+    );  
 
-        if (
-            outgoingTransfer &&
-            incomingTransfer &&
-            stableAndBaseMints.includes(outgoingTransfer.mint?.toLowerCase()) &&
-            !stableAndBaseMints.includes(incomingTransfer.mint?.toLowerCase())
-        ) {
-            return incomingTransfer.mint;
-        }
-    }
+    if (outgoingIndex === -1) {  
+        return null; // No outgoing stable — not a buy  
+    }  
 
-    // 2. Fallback for explicit DEX swap fields
-    if (event.tokenInputMint && event.tokenOutputMint) {
-        const isOutgoingStable = stableAndBaseMints.includes(event.tokenInputMint.toLowerCase());
-        const isIncomingStable = stableAndBaseMints.includes(event.tokenOutputMint.toLowerCase());
+    // Find incoming non-stable that happens after the outgoing stable  
+    const incomingAfter = event.tokenTransfers.find((t, idx) =>   
+        idx > outgoingIndex &&  
+        t.toUserAccount?.toLowerCase() === userAccount &&  
+        !stableAndBaseMints.includes(t.mint?.toLowerCase())  
+    );  
 
-        if (isOutgoingStable && !isIncomingStable) {
-            return event.tokenOutputMint;
-        }
-    }
+    if (incomingAfter) {  
+        return incomingAfter.mint; // This is the bought token  
+    }  
+}  
 
-    // Not a buy
-    return null;
-    }
+// Fallback for DEX swap events if tokenTransfers not available  
+if (event.tokenInputMint && event.tokenOutputMint) {  
+    const isOutgoingStable = stableAndBaseMints.includes(event.tokenInputMint.toLowerCase());  
+    const isIncomingStable = stableAndBaseMints.includes(event.tokenOutputMint.toLowerCase());  
+
+    if (isOutgoingStable && !isIncomingStable) {  
+        return event.tokenOutputMint;  
+    }  
+}  
+
+return null;
+  
+}
     // Skip if this tokenMint has already been sent once
     //if (sentTokenMints.has(tokenMint)) {
    //   console.log(`⏭️ Skipping already-sent tokenMint: ${tokenMint}`);
