@@ -99,6 +99,8 @@ if (event.tokenInputMint && event.tokenOutputMint) {
 return null;
   
 }
+const tokenMint = extractBuyTokenMint(event, account);
+if (!tokenMint) continue; // not a buy, skip
     // Skip if this tokenMint has already been sent once
     //if (sentTokenMints.has(tokenMint)) {
    //   console.log(`⏭️ Skipping already-sent tokenMint: ${tokenMint}`);
@@ -118,7 +120,7 @@ return null;
                    `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
 
     await sendTelegram(message);
-  }
+//  }
 
   res.status(200).send('ok');
 });
