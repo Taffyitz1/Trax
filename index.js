@@ -100,12 +100,13 @@ return null;
   
 }
 const tokenMint = extractBuyTokenMint(event, account);
-if (!tokenMint) continue; // not a buy, skip
+if (!tokenMint)
+continue;
     // Skip if this tokenMint has already been sent once
     //if (sentTokenMints.has(tokenMint)) {
    //   console.log(`⏭️ Skipping already-sent tokenMint: ${tokenMint}`);
   //    continue;
-    //}
+}
 
 // Store the tokenMint
  //   sentTokenMints.add(tokenMint);
