@@ -54,35 +54,47 @@ app.post('/webhook', async (req, res) => {
     //  console.log(`⏭️ Skipping wallet not in wallets.json: ${account}`);
     //  continue;
     }
-    // Extract token mint (CA) - using working method
     const stableAndBaseMints = [
-      "so11111111111111111111111111111111111111112", // SOL
-      "epjfwdd5aufqssqem2qn1xzybapc8g4weggkzwydt1v", // USDC
-      "es9vmfrzacersdjq5jyuh...nyb"                 // USDT (shortened for example)
-    ];
+    "o11111111111111111111111111111111111111111", // SOL
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
+    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"                 // USDT
+].map(m => m.toLowerCase()); // force lowercase for matching
 
-// 1. Check tokenTransfers for incoming tokens (toUserAccount = user, not a base/stable)
-    const incomingTokenMints = event.tokenTransfers
-      ?.filter(t => 
-        t.toUserAccount?.toLowerCase() === account.toLowerCase() && // Received by user
-        !stableAndBaseMints.includes(t.mint?.toLowerCase())        // Not a base/stablecoin
-      )
-      .map(t => t.mint) || [];
+function extractBuyTokenMint(event, userAccount) {
+    userAccount = userAccount.toLowerCase();
 
-// 2. Fallback: Check if the event explicitly defines input/output mints
-// (Prioritize tokenInputMint or similar fields if available)
-    const fallbackMint = 
-      event.tokenInputMint ||    // Some DEXs label the incoming token explicitly
-      event.tokenInMint ||       // Alternative common field name
-      event.destinationMint ||   // Sometimes called "destination"
-      event.tokenOutputMint ||   // Last resort (but may be outgoing token)
-      event.mint || 
-      event.token?.mint || 
-      "N/A";
+    // 1. Prefer tokenTransfers
+    if (event.tokenTransfers?.length >= 2) {
+        const outgoingTransfer = event.tokenTransfers.find(t => 
+            t.fromUserAccount?.toLowerCase() === userAccount
+        );
+        const incomingTransfer = event.tokenTransfers.find(t => 
+            t.toUserAccount?.toLowerCase() === userAccount
+        );
 
-// 3. Combine and dedupe, preferring incoming transfers over fallback
-    const tokenMint = [...new Set([...incomingTokenMints, fallbackMint])]
-      .find(m => m && m !== "N/A") || "N/A";
+        if (
+            outgoingTransfer &&
+            incomingTransfer &&
+            stableAndBaseMints.includes(outgoingTransfer.mint?.toLowerCase()) &&
+            !stableAndBaseMints.includes(incomingTransfer.mint?.toLowerCase())
+        ) {
+            return incomingTransfer.mint;
+        }
+    }
+
+    // 2. Fallback for explicit DEX swap fields
+    if (event.tokenInputMint && event.tokenOutputMint) {
+        const isOutgoingStable = stableAndBaseMints.includes(event.tokenInputMint.toLowerCase());
+        const isIncomingStable = stableAndBaseMints.includes(event.tokenOutputMint.toLowerCase());
+
+        if (isOutgoingStable && !isIncomingStable) {
+            return event.tokenOutputMint;
+        }
+    }
+
+    // Not a buy
+    return null;
+    }
     // Skip if this tokenMint has already been sent once
     //if (sentTokenMints.has(tokenMint)) {
    //   console.log(`⏭️ Skipping already-sent tokenMint: ${tokenMint}`);
