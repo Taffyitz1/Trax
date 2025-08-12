@@ -103,7 +103,7 @@ return null;
     //if (sentTokenMints.has(tokenMint)) {
    //   console.log(`⏭️ Skipping already-sent tokenMint: ${tokenMint}`);
   //    continue;
-    }
+    //}
 
 // Store the tokenMint
  //   sentTokenMints.add(tokenMint);
