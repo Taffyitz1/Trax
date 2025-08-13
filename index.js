@@ -51,9 +51,10 @@ app.post('/webhook', async (req, res) => {
                        (account !== "Unknown" ? `${account.slice(0, 4)}...${account.slice(-4)}` : "Unknown Wallet");
 
     const stableAndBaseMints = [
-      "So11111111111111111111111111111111111111112", // SOL
+      "So11111111111111111111111111111111111111112", // WSOL
       "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
       "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"  // USDT
+      "So11111111111111111111111111111111111111111" // SOL
     ].map(m => m.toLowerCase());
 
     function extractBuyTokenMint(event, userAccount) {
