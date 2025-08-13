@@ -21,8 +21,7 @@ try {
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const chatId = process.env.TELEGRAM_CHAT_ID;
 
-//const sentTokenMints = new Set();
-// Optional: No async (tify Telegram when bot starts
+// Optional: Notify Telegram when bot starts
 sendTelegram("✅ Webhook bot is live and tracking...").catch(err =>
   console.error("❌ Failed to send startup message:", err)
 );
@@ -41,7 +40,7 @@ app.post('/webhook', async (req, res) => {
   for (const event of events) {
     console.log("📩 New Event:", JSON.stringify(event, null, 2));
 
-    // Extract wallet account - using the method that worked before
+    // Extract wallet account
     const account = event.account || 
                    event.tokenTransfers?.[0]?.fromUserAccount || 
                    event.tokenTransfers?.[0]?.toUserAccount || 
@@ -50,82 +49,69 @@ app.post('/webhook', async (req, res) => {
     // Wallet label from wallets.json with proper fallback
     const walletLabel = wallets[account] || 
                        (account !== "Unknown" ? `${account.slice(0, 4)}...${account.slice(-4)}` : "Unknown Wallet");
-   // if (!wallets[account]) {
-    //  console.log(`⏭️ Skipping wallet not in wallets.json: ${account}`);
-    //  continue;
-    }
+
     const stableAndBaseMints = [
-"So11111111111111111111111111111111111111111", // SOL
-"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
-"Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"                 // USDT
-].map(m => m.toLowerCase());
+      "So11111111111111111111111111111111111111111", // SOL
+      "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
+      "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"  // USDT
+    ].map(m => m.toLowerCase());
 
-function extractBuyTokenMint(event, userAccount) {
-userAccount = userAccount.toLowerCase();
+    function extractBuyTokenMint(event, userAccount) {
+      userAccount = userAccount.toLowerCase();
 
-if (event.tokenTransfers?.length >= 2) {  
-    // Find index of outgoing stable  
-    const outgoingIndex = event.tokenTransfers.findIndex(t =>   
-        t.fromUserAccount?.toLowerCase() === userAccount &&  
-        stableAndBaseMints.includes(t.mint?.toLowerCase())  
-    );  
+      if (event.tokenTransfers?.length >= 2) {  
+        // Find index of outgoing stable  
+        const outgoingIndex = event.tokenTransfers.findIndex(t =>   
+          t.fromUserAccount?.toLowerCase() === userAccount &&  
+          stableAndBaseMints.includes(t.mint?.toLowerCase())  
+        );  
 
-    if (outgoingIndex === -1) {  
-        return null; // No outgoing stable — not a buy  
-    }  
+        if (outgoingIndex === -1) {  
+          return null; // No outgoing stable — not a buy  
+        }  
 
-    // Find incoming non-stable that happens after the outgoing stable  
-    const incomingAfter = event.tokenTransfers.find((t, idx) =>   
-        idx > outgoingIndex &&  
-        t.toUserAccount?.toLowerCase() === userAccount &&  
-        !stableAndBaseMints.includes(t.mint?.toLowerCase())  
-    );  
+        // Find incoming non-stable that happens after the outgoing stable  
+        const incomingAfter = event.tokenTransfers.find((t, idx) =>   
+          idx > outgoingIndex &&  
+          t.toUserAccount?.toLowerCase() === userAccount &&  
+          !stableAndBaseMints.includes(t.mint?.toLowerCase())  
+        );  
 
-    if (incomingAfter) {  
-        return incomingAfter.mint; // This is the bought token  
-    }  
-}  
+        if (incomingAfter) {  
+          return incomingAfter.mint; // This is the bought token  
+        }  
+      }  
 
-// Fallback for DEX swap events if tokenTransfers not available  
-if (event.tokenInputMint && event.tokenOutputMint) {  
-    const isOutgoingStable = stableAndBaseMints.includes(event.tokenInputMint.toLowerCase());  
-    const isIncomingStable = stableAndBaseMints.includes(event.tokenOutputMint.toLowerCase());  
+      // Fallback for DEX swap events if tokenTransfers not available  
+      if (event.tokenInputMint && event.tokenOutputMint) {  
+        const isOutgoingStable = stableAndBaseMints.includes(event.tokenInputMint.toLowerCase());  
+        const isIncomingStable = stableAndBaseMints.includes(event.tokenOutputMint.toLowerCase());  
 
-    if (isOutgoingStable && !isIncomingStable) {  
-        return event.tokenOutputMint;  
-    }  
-}  
+        if (isOutgoingStable && !isIncomingStable) {  
+          return event.tokenOutputMint;  
+        }  
+      }  
 
-return null;
-  
-}
-const tokenMint = extractBuyTokenMint(event, account);
-if (!tokenMint)
-continue;
-    // Skip if this tokenMint has already been sent once
-    //if (sentTokenMints.has(tokenMint)) {
-   //   console.log(`⏭️ Skipping already-sent tokenMint: ${tokenMint}`);
-  //    continue;
-}
+      return null;
+    }
 
-// Store the tokenMint
- //   sentTokenMints.add(tokenMint);
- //   console.log(`Added token mint to tracking: ${tokenMint}`);
-    // SOL amount calculation - summing all native transfers as originally
+    const tokenMint = extractBuyTokenMint(event, account);
+    if (!tokenMint) continue;
+
+    // SOL amount calculation - summing all native transfers
     const solAmount = (event.nativeTransfers || []).reduce((sum, t) => sum + t.amount, 0);
 
-    // Your exact desired message format
+    // Message format
     const message = `🚨 NEW CALL 🚨\n\n` +
                    `🔹 Wallet: ${walletLabel}\n` +
                    `🔹 CA:${tokenMint} \n` +
                    `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
 
     await sendTelegram(message);
-//  }
+  }
 
   res.status(200).send('ok');
 });
-
 
 // Telegram alert function
 async function sendTelegram(text) {
