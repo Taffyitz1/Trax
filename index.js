@@ -48,7 +48,7 @@ app.post('/webhook', async (req, res) => {
 
     // Wallet label from wallets.json with proper fallback
     const walletLabel = wallets[account] || 
-                       (account !== "Unknown" ? `${account.slice(0, 4)}...${account.slice(-4)}` : "Unknown Wallet");
+      (account !== "Unknown" ? `${account.slice(0, 4)}...${account.slice(-4)}` : "Unknown Wallet");
 
     const stableAndBaseMints = [
       "So11111111111111111111111111111111111111112", // WSOL
@@ -60,36 +60,27 @@ app.post('/webhook', async (req, res) => {
       userAccount = userAccount.toLowerCase();
 
       if (event.tokenTransfers?.length >= 2) {  
-        // Find index of outgoing stable  
         const outgoingIndex = event.tokenTransfers.findIndex(t =>   
           t.fromUserAccount?.toLowerCase() === userAccount &&  
           stableAndBaseMints.includes(t.mint?.toLowerCase())  
         );  
 
-        if (outgoingIndex === -1) {  
-          return null; // No outgoing stable — not a buy  
-        }  
+        if (outgoingIndex === -1) return null;
 
-        // Find incoming non-stable that happens after the outgoing stable  
         const incomingAfter = event.tokenTransfers.find((t, idx) =>   
           idx > outgoingIndex &&  
           t.toUserAccount?.toLowerCase() === userAccount &&  
           !stableAndBaseMints.includes(t.mint?.toLowerCase())  
         );  
 
-        if (incomingAfter) {  
-          return incomingAfter.mint; // This is the bought token  
-        }  
+        if (incomingAfter) return incomingAfter.mint;
       }  
 
-      // Fallback for DEX swap events if tokenTransfers not available  
       if (event.tokenInputMint && event.tokenOutputMint) {  
         const isOutgoingStable = stableAndBaseMints.includes(event.tokenInputMint.toLowerCase());  
         const isIncomingStable = stableAndBaseMints.includes(event.tokenOutputMint.toLowerCase());  
 
-        if (isOutgoingStable && !isIncomingStable) {  
-          return event.tokenOutputMint;  
-        }  
+        if (isOutgoingStable && !isIncomingStable) return event.tokenOutputMint;
       }  
 
       return null;
@@ -98,13 +89,13 @@ app.post('/webhook', async (req, res) => {
     const tokenMint = extractBuyTokenMint(event, account);
     if (!tokenMint) continue;
 
-    // SOL amount calculation - summing all native transfers
+    // SOL amount calculation
     const solAmount = (event.nativeTransfers || []).reduce((sum, t) => sum + t.amount, 0);
 
     // Message format
     const message = `🚨 NEW CALL 🚨\n\n` +
                    `🔹 Wallet: ${walletLabel}\n` +
-                   `🔹 CA:${tokenMint} \n` +
+                   `🔹 CA: ${tokenMint} \n` +
                    `🔹 Smart Wallets Invested: ${(solAmount / 1e9).toFixed(2)} SOL`;
 
     await sendTelegram(message);
