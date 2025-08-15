@@ -56,34 +56,55 @@ app.post('/webhook', async (req, res) => {
       "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"  // USDT
     ].map(m => m.toLowerCase());
 
-    function extractBuyTokenMint(event, userAccount) {
-      userAccount = userAccount.toLowerCase();
+    function extractBuyTokenMint(event, rawAccount) {
+  const user = (rawAccount || '').toLowerCase();
 
-      if (event.tokenTransfers?.length >= 2) {  
-        const outgoingIndex = event.tokenTransfers.findIndex(t =>   
-          t.fromUserAccount?.toLowerCase() === userAccount &&  
-          stableAndBaseMints.includes(t.mint?.toLowerCase())  
-        );  
+  // Keep a lowercased set for comparisons
+  const stableSet = new Set(stableAndBaseMints.map(m => String(m).toLowerCase()));
 
-        if (outgoingIndex === -1) return null;
+  // Normalize transfers BUT keep original mint for return
+  const transfers = (event.tokenTransfers || []).map(t => ({
+    fromLC: t.fromUserAccount?.toLowerCase() || '',
+    toLC: t.toUserAccount?.toLowerCase() || '',
+    mintLC: t.mint?.toLowerCase() || '',
+    mint: t.mint || '' // original case preserved
+  }));
 
-        const incomingAfter = event.tokenTransfers.find((t, idx) =>   
-          idx > outgoingIndex &&  
-          t.toUserAccount?.toLowerCase() === userAccount &&  
-          !stableAndBaseMints.includes(t.mint?.toLowerCase())  
-        );  
+  // Helpers
+  const hasIncomingStable = transfers.some(t => t.toLC === user && stableSet.has(t.mintLC));
+  const hasOutgoingStable = transfers.some(t => t.fromLC === user && stableSet.has(t.mintLC));
+  const incomingNonStable = transfers.find(t => t.toLC === user && !stableSet.has(t.mintLC));
 
-        if (incomingAfter) return incomingAfter.mint;
-      }  
+  // Native SOL spent by the user (wrap path etc.)
+  const lamportsOut = (event.nativeTransfers || [])
+    .filter(nt => nt.fromUserAccount?.toLowerCase() === user)
+    .reduce((s, nt) => s + (Number(nt.amount) || 0), 0);
 
-      if (event.tokenInputMint && event.tokenOutputMint) {  
-        const isOutgoingStable = stableAndBaseMints.includes(event.tokenInputMint.toLowerCase());  
-        const isIncomingStable = stableAndBaseMints.includes(event.tokenOutputMint.toLowerCase());  
+  // --- Hard "sell" shield: if any stable comes IN to the user, it's a sell or LP removal
+  if (hasIncomingStable) return null;
 
-        if (isOutgoingStable && !isIncomingStable) return event.tokenOutputMint;
-      }  
+  // 1) Swap summary fields: stable in -> non-stable out (cleanest signal)
+  if (event.tokenInputMint && event.tokenOutputMint) {
+    const inLC = String(event.tokenInputMint).toLowerCase();
+    const outLC = String(event.tokenOutputMint).toLowerCase();
+    if (stableSet.has(inLC) && !stableSet.has(outLC)) {
+      return event.tokenOutputMint; // keep original case
+    }
+  }
 
-      return null;
+  // 2) Order-independent transfers: user sent stable, received non-stable
+  if (hasOutgoingStable && incomingNonStable) {
+    return incomingNonStable.mint; // keep original case
+  }
+
+  // 3) Native SOL path: user spent lamports (wrap), then received non-stable
+  //    (guards against airdrops/claims which have no real outflow)
+  if (lamportsOut > 0 && incomingNonStable) {
+    return incomingNonStable.mint;
+  }
+
+  // No clean buy signal
+  return null;
     }
 
     const tokenMint = extractBuyTokenMint(event, account);
